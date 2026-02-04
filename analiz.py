@@ -1,1 +1,1 @@
-print("Veri Analizi v1.0 - Baslatiliyor...")
+print("Veri Analizi v2.0 - GitHub tarafindan guncellendi")
