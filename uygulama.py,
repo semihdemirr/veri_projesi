@@ -1,0 +1,65 @@
+import streamlit as st
+import pandas as pd
+import sqlite3
+
+# --- AYARLAR ---
+st.set_page_config(page_title="Semih'in IK Paneli", layout="wide")
+
+# --- FONKSIYON: VERILERI GETIR (Guncellendi) ---
+def verileri_getir(min_maas=0):
+    conn = sqlite3.connect("sirket.db")
+    # SQL SORGUSU: WHERE komutu ile filtreleme yapiyoruz
+    sorgu = f"SELECT * FROM personel WHERE maas >= {min_maas}"
+    df = pd.read_sql_query(sorgu, conn)
+    conn.close()
+    return df
+
+# --- ANA SAYFA ---
+st.title("📂 Şirket Veritabanı Yönetim Paneli")
+
+# 1. SOL MENU: PERSONEL EKLEME FORMU
+st.sidebar.header("➕ Yeni Personel Ekle")
+yeni_isim = st.sidebar.text_input("Ad Soyad")
+yeni_dept = st.sidebar.selectbox("Departman", ["IK", "IT", "Yonetim", "Pazarlama", "Satis"])
+yeni_maas = st.sidebar.number_input("Maaş", min_value=17002, step=1000)
+st.sidebar.divider() # Cizgi
+st.sidebar.header("🔍 Filtreleme")
+maas_filtresi = st.sidebar.slider("Minimum Maaş Limiti", 0, 100000, 0, step=1000)
+st.sidebar.divider() # Cizgi
+st.sidebar.header("🔍 Filtreleme")
+maas_filtresi = st.sidebar.slider("Minimum Maaş Limiti", 0, 100000, 0, step=1000)
+if st.sidebar.button("Kaydet"):
+    personel_ekle(yeni_isim, yeni_dept, yeni_maas)
+    st.sidebar.success(f"{yeni_isim} başarıyla eklendi!")
+    # Sayfayi yenile ki tablo guncellensin (Bu onemli!)
+    st.rerun()
+
+# 2. ANA EKRAN: TABLO VE GRAFIK
+df = verileri_getir(maas_filtresi)
+
+col1, col2 = st.columns(2) # Ekrani ikiye bol
+
+with col1:
+    st.subheader("📋 Personel Listesi")
+    st.dataframe(df)
+
+with col2:
+    st.subheader("💰 Departman Bütçeleri")
+    ozet = df.groupby("departman")["maas"].sum()
+    st.bar_chart(ozet)
+# --- MEVCUT KODLARIN EN ALTINA EKLE ---
+
+st.divider() # Araya bir cizgi cekelim
+
+st.subheader("📥 Veri Yedekleme")
+
+# Veriyi CSV formatina cevir
+csv_dosyasi = df.to_csv(index=False).encode('utf-8')
+
+st.download_button(
+    label="📊 Tüm Verileri CSV Olarak İndir",
+    data=csv_dosyasi,
+    file_name="guncel_personel_listesi.csv",
+    mime="text/csv",
+)
+
