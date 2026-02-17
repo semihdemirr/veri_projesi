@@ -2,19 +2,17 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-# --- SAYFA AYARLARI ---
+# --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="Semih'in IK Paneli", layout="wide")
 
-# --- FONKSIYON: VERILERI GETIR (MAAŞ FİLTRELİ) ---
+# --- 2. FONKSİYONLAR ---
 def verileri_getir(min_maas):
     conn = sqlite3.connect("sirket.db")
-    # SQL ile filtreleme yapiyoruz
     sorgu = f"SELECT * FROM personel WHERE maas >= {min_maas}"
     df = pd.read_sql_query(sorgu, conn)
     conn.close()
     return df
 
-# --- FONKSIYON: YENI PERSONEL EKLE ---
 def personel_ekle(isim, dept, maas):
     conn = sqlite3.connect("sirket.db")
     imlec = conn.cursor()
@@ -22,20 +20,15 @@ def personel_ekle(isim, dept, maas):
     conn.commit()
     conn.close()
 
-# --- ANA BAŞLIK ---
-st.title("📂 Şirket Veritabanı Yönetim Paneli")
+# --- 3. SOL MENÜ (SIDEBAR) ---
+# Önce filtreyi oluşturuyoruz ki veriyi ona göre çekebilelim
+st.sidebar.title("👮‍♂️ Semih'in Operasyon Merkezi")
 
-# --- SOL MENÜ (SIDEBAR) ---
-st.sidebar.title("🔧 Kontrol Paneli")
-
-# 1. BÖLÜM: FİLTRELEME
 st.sidebar.header("🔍 Filtreleme")
-# Maas Cubugu (Slider)
 secilen_min_maas = st.sidebar.slider("Minimum Maaş Limiti", 0, 100000, 0, step=1000)
 
-st.sidebar.divider() # Cizgi
+st.sidebar.divider()
 
-# 2. BÖLÜM: YENİ PERSONEL EKLEME
 st.sidebar.header("➕ Yeni Personel Ekle")
 yeni_isim = st.sidebar.text_input("Ad Soyad")
 yeni_dept = st.sidebar.selectbox("Departman", ["IK", "IT", "Yonetim", "Pazarlama", "Satis"])
@@ -46,26 +39,48 @@ if st.sidebar.button("Kaydet"):
     st.sidebar.success(f"{yeni_isim} başarıyla eklendi!")
     st.rerun()
 
-# --- ANA EKRAN ---
+# --- 4. ANA EKRAN VE HESAPLAMALAR ---
+st.title("📂 Şirket Veritabanı Yönetim Paneli")
+
+# KRİTİK NOKTA: Veriyi (df) BURADA çekiyoruz!
 df = verileri_getir(secilen_min_maas)
 
-col1, col2 = st.columns(2)
+# Veriyi çektikten SONRA istatistikleri hesaplıyoruz
+st.markdown("---") 
 
-with col1:
+col1, col2, col3 = st.columns(3)
+
+# Hata vermemesi için boş veri kontrolü yapıyoruz
+if not df.empty:
+    toplam_personel = len(df)
+    toplam_maas = df["maas"].sum()
+    ortalama_maas = df["maas"].mean()
+    
+    col1.metric(label="Toplam Personel", value=f"{toplam_personel} Kişi")
+    col2.metric(label="Toplam Maaş Yükü", value=f"{toplam_maas:,.0f} TL")
+    col3.metric(label="Ortalama Maaş", value=f"{ortalama_maas:,.0f} TL")
+else:
+    col1.metric("Durum", "Veri Yok")
+
+st.markdown("---")
+
+# --- 5. TABLO VE GRAFİKLER ---
+col_sol, col_sag = st.columns(2)
+
+with col_sol:
     st.subheader(f"📋 Personel Listesi ({len(df)} Kişi)")
     st.dataframe(df)
 
-with col2:
+with col_sag:
     st.subheader("💰 Departman Bütçeleri")
     if not df.empty:
         ozet = df.groupby("departman")["maas"].sum()
         st.bar_chart(ozet)
     else:
-        st.warning("Bu kriterlere uygun çalışan bulunamadı.")
+        st.warning("Kriterlere uygun veri yok.")
 
-# --- ALT KISIM: YEDEKLEME ---
+# --- 6. YEDEKLEME ---
 st.divider()
-st.subheader("📥 Veri Yedekleme")
 csv_dosyasi = df.to_csv(index=False).encode('utf-8')
 st.download_button(
     label="📊 Güncel Listeyi İndir (CSV)",
